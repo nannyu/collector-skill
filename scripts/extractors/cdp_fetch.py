@@ -33,13 +33,18 @@ def _cdp_new_tab(url: str) -> str | None:
         )
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            return data.get("targetId")
+            target_id = data.get("targetId")
+            if target_id:
+                # 等待页面加载
+                import time
+                time.sleep(2)
+            return target_id
     except Exception:
         return None
 
 
 def _cdp_eval(target_id: str, js_code: str) -> str | None:
-    """在 tab 中执行 JS 并返回结果"""
+    """在 tab 中执行 JS 并返回结果（从 JSON value 字段提取）"""
     try:
         req = urllib.request.Request(
             f"{CDP_BASE}/eval?target={target_id}",
@@ -47,7 +52,13 @@ def _cdp_eval(target_id: str, js_code: str) -> str | None:
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=15) as resp:
-            return resp.read().decode("utf-8", errors="replace")
+            raw = resp.read().decode("utf-8", errors="replace")
+            # web-access API 返回 {"value": "..."}
+            try:
+                data = json.loads(raw)
+                return data.get("value", raw)
+            except (json.JSONDecodeError, TypeError):
+                return raw
     except Exception:
         return None
 
