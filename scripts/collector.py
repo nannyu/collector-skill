@@ -22,6 +22,8 @@ from extractors.xiaohongshu import extract_xiaohongshu
 from extractors.pdf_extract import extract_pdf
 from extractors.ocr import ocr_images
 from extractors.media import download_media_batch
+from extractors.cdp_fetch import fetch_via_cdp, _cdp_available
+from extractors.scrapling_fetch import fetch_via_scrapling, _scrapling_available
 
 CST = timezone(timedelta(hours=8))
 ARCHIVE_ROOT = Path.home() / "Her工作间" / "knowledge-base" / "archive"
@@ -154,6 +156,54 @@ def save_raw_archive(result: dict) -> str | None:
     return str(archive_dir)
 
 
+def extract_with_fallback(url: str, source_type: str) -> dict:
+    """
+    带 fallback 的统一提取逻辑
+    fallback 链: Jina/HTTP → Scrapling → CDP
+    """
+    # Level 1 & 2: Jina + 直接 HTTP（由各 extractor 内部处理）
+    if source_type == "wechat":
+        result = extract_wechat(url)
+    elif source_type == "xiaohongshu":
+        result = extract_xiaohongshu(url)
+    else:
+        result = extract_web(url)
+
+    # 检查是否有有效内容
+    content = result.get("content_md", "")
+    if content and len(content.strip()) > 50:
+        return result
+
+    # Level 3: Scrapling（TLS 指纹伪装，可选）
+    if _scrapling_available():
+        scrapling_result = fetch_via_scrapling(url)
+        if scrapling_result and len(scrapling_result.get("content_md", "").strip()) > 50:
+            return build_result(
+                source_type, url,
+                title=scrapling_result.get("title", ""),
+                content_md=scrapling_result["content_md"],
+                images=scrapling_result.get("images", []),
+                videos=scrapling_result.get("videos", []),
+                metadata={"fetcher": "scrapling"},
+            )
+
+    # Level 4: CDP 浏览器（需要 web-access skill，复用登录态）
+    if _cdp_available():
+        cdp_result = fetch_via_cdp(url)
+        if cdp_result and len(cdp_result.get("content_md", "").strip()) > 50:
+            return build_result(
+                source_type, url,
+                title=cdp_result.get("title", ""),
+                content_md=cdp_result["content_md"],
+                images=cdp_result.get("images", []),
+                videos=cdp_result.get("videos", []),
+                metadata={"fetcher": "cdp"},
+            )
+
+    # 全部失败，返回原始结果（可能有部分内容）
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description="Collector - 信息收集统一入口")
     parser.add_argument("input", nargs="?", help="URL、文件路径或文本")
@@ -179,14 +229,10 @@ def main():
     try:
         if source_type == "text":
             result = build_result("text", content_md=processed)
-        elif source_type == "wechat":
-            result = extract_wechat(processed)
-        elif source_type == "xiaohongshu":
-            result = extract_xiaohongshu(processed)
         elif source_type == "pdf":
             result = extract_pdf(processed)
-        elif source_type == "webpage":
-            result = extract_web(processed)
+        elif source_type in ("wechat", "xiaohongshu", "webpage"):
+            result = extract_with_fallback(processed, source_type)
         else:
             print(json.dumps({"error": f"不支持的输入类型: {source_type}"}, ensure_ascii=False))
             sys.exit(1)
