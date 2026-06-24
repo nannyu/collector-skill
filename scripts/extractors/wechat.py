@@ -128,7 +128,15 @@ def fetch_wechat_jina(url: str) -> dict | None:
                 title_match = re.match(r"Title:\s*(.+)", content)
                 if title_match:
                     title = title_match.group(1).strip()
-                return {"content_md": content, "title": title, "images": [], "source": "jina"}
+
+                # 从 Markdown 提取图片
+                images = []
+                for m in re.finditer(r"!\[([^\]]*)\]\((https?://[^\)]+)\)", content):
+                    alt = m.group(1)
+                    img_url = m.group(2)
+                    images.append({"url": img_url, "alt": alt, "ocr_text": ""})
+
+                return {"content_md": content, "title": title, "images": images, "source": "jina"}
     except Exception:
         pass
     return None

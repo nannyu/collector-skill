@@ -21,6 +21,7 @@ from extractors.wechat import extract_wechat
 from extractors.xiaohongshu import extract_xiaohongshu
 from extractors.pdf_extract import extract_pdf
 from extractors.ocr import ocr_images
+from extractors.media import download_media_batch
 
 CST = timezone(timedelta(hours=8))
 
@@ -70,6 +71,7 @@ def build_result(source_type: str, source_url: str = "", **kwargs) -> dict:
         "title": kwargs.get("title", ""),
         "content_md": kwargs.get("content_md", ""),
         "images": kwargs.get("images", []),
+        "videos": kwargs.get("videos", []),
         "author": kwargs.get("author", ""),
         "published_at": kwargs.get("published_at", ""),
         "metadata": kwargs.get("metadata", {}),
@@ -100,6 +102,8 @@ def main():
     parser.add_argument("input", nargs="?", help="URL、文件路径或文本")
     parser.add_argument("--text", action="store_true", help="将输入作为纯文本处理")
     parser.add_argument("--no-ocr", action="store_true", help="跳过图片 OCR")
+    parser.add_argument("--no-download", action="store_true", help="跳过媒体下载")
+    parser.add_argument("--media-dir", help="媒体文件保存目录（默认与 JSON 同目录下的 media/）")
     parser.add_argument("--output-dir", help="保存结果到指定目录")
     args = parser.parse_args()
 
@@ -132,6 +136,26 @@ def main():
         print(json.dumps({"error": str(e), "source_type": source_type}, ensure_ascii=False))
         sys.exit(1)
 
+    # 下载媒体文件（图片 + 视频）
+    if not args.no_download:
+        images = result.get("images", [])
+        videos = result.get("videos", [])
+        if images or videos:
+            # 确定媒体保存目录
+            if args.media_dir:
+                media_dir = str(Path(args.media_dir).expanduser())
+            elif args.output_dir:
+                media_dir = str(Path(args.output_dir).expanduser() / "media")
+            else:
+                media_dir = str(Path.home() / "Her工作间" / "collected" / "media")
+
+            title = result.get("title", "")
+            updated_images, updated_videos = download_media_batch(
+                images, videos, media_dir, title=title
+            )
+            result["images"] = updated_images
+            result["videos"] = updated_videos
+
     # OCR 处理
     if not args.no_ocr:
         result = run_ocr_on_images(result)
@@ -144,7 +168,6 @@ def main():
     if args.output_dir:
         out_dir = Path(args.output_dir).expanduser()
         out_dir.mkdir(parents=True, exist_ok=True)
-        # 用标题或时间戳做文件名
         title = result.get("title", "").strip()
         if title:
             safe_name = re.sub(r'[^\w一-鿿-]', '_', title)[:80]

@@ -95,7 +95,18 @@ def fetch_via_jina(url: str, timeout: int = 15) -> dict | None:
                 title_match = re.match(r"Title:\s*(.+)", content)
                 if title_match:
                     title = title_match.group(1).strip()
-                return {"content_md": content, "title": title, "source": "jina"}
+
+                # 从 Markdown 提取图片
+                images = []
+                for m in re.finditer(r"!\[([^\]]*)\]\((https?://[^\)]+)\)", content):
+                    alt = m.group(1)
+                    img_url = m.group(2)
+                    # 跳过 star history 等 badge 图片
+                    if "star-history" in img_url or "skill-history" in img_url or "camo.githubusercontent" in img_url:
+                        continue
+                    images.append({"url": img_url, "alt": alt, "ocr_text": ""})
+
+                return {"content_md": content, "title": title, "images": images, "source": "jina"}
     except Exception:
         pass
     return None
@@ -135,10 +146,31 @@ def fetch_via_http(url: str, timeout: int = 15) -> dict | None:
             for m in re.finditer(r'<img[^>]+src=["\']([^"\']+)["\']', body_html, re.IGNORECASE):
                 img_url = m.group(1)
                 if not img_url.startswith("http"):
-                    # 相对路径转绝对
                     from urllib.parse import urljoin
                     img_url = urljoin(url, img_url)
                 images.append({"url": img_url, "alt": "", "ocr_text": ""})
+
+            # 提取视频
+            videos = []
+            # <video src="...">
+            for m in re.finditer(r'<video[^>]+src=["\']([^"\']+)["\']', body_html, re.IGNORECASE):
+                vid_url = m.group(1)
+                if not vid_url.startswith("http"):
+                    from urllib.parse import urljoin
+                    vid_url = urljoin(url, vid_url)
+                videos.append({"url": vid_url, "type": "video"})
+            # <video><source src="...">
+            for m in re.finditer(r'<source[^>]+src=["\']([^"\']+)["\']', body_html, re.IGNORECASE):
+                vid_url = m.group(1)
+                if not vid_url.startswith("http"):
+                    from urllib.parse import urljoin
+                    vid_url = urljoin(url, vid_url)
+                videos.append({"url": vid_url, "type": "video"})
+            # <iframe> 嵌入视频（YouTube, Bilibili 等）
+            for m in re.finditer(r'<iframe[^>]+src=["\']([^"\']+)["\']', body_html, re.IGNORECASE):
+                iframe_url = m.group(1)
+                if any(v in iframe_url for v in ["youtube.com", "bilibili.com", "player.vimeo.com"]):
+                    videos.append({"url": iframe_url, "type": "iframe"})
 
             # HTML → Markdown
             parser = SimpleHTMLToMarkdown()
@@ -150,6 +182,7 @@ def fetch_via_http(url: str, timeout: int = 15) -> dict | None:
                     "content_md": f"# {title}\n\n{content_md}" if title else content_md,
                     "title": title,
                     "images": images,
+                    "videos": videos,
                     "source": "http",
                 }
     except Exception:
@@ -181,6 +214,7 @@ def extract_web(url: str) -> dict:
             title=result.get("title", ""),
             content_md=result["content_md"],
             images=result.get("images", []),
+            videos=result.get("videos", []),
             metadata={"fetcher": "http"},
         )
 

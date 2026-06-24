@@ -151,16 +151,24 @@ def fetch_xhs_http(url: str) -> dict | None:
                         title = first_note.get("title", "")
                         desc = first_note.get("desc", "")
                         images = []
+                        videos = []
                         for img in first_note.get("imageList", []):
                             img_url = img.get("url", img.get("urlDefault", ""))
                             if img_url:
                                 images.append({"url": img_url, "alt": "", "ocr_text": ""})
+                        # 视频笔记
+                        video_info = first_note.get("video", {})
+                        if video_info:
+                            vid_url = video_info.get("url", video_info.get("urlDefault", ""))
+                            if vid_url:
+                                videos.append({"url": vid_url, "type": "video"})
                         author = first_note.get("user", {}).get("nickname", "")
                         return {
                             "content_md": f"# {title}\n\n{desc}" if title else desc,
                             "title": title,
                             "author": author,
                             "images": images,
+                            "videos": videos,
                             "source": "ssr_state",
                         }
                 except (json.JSONDecodeError, StopIteration):
@@ -191,6 +199,7 @@ def extract_xiaohongshu(url: str) -> dict:
             title=result.get("title", ""),
             content_md=result["content_md"],
             images=result.get("images", []),
+            videos=result.get("videos", []),
             metadata={"fetcher": "jina"},
         )
 
@@ -203,6 +212,7 @@ def extract_xiaohongshu(url: str) -> dict:
             author=result.get("author", ""),
             content_md=result["content_md"],
             images=result.get("images", []),
+            videos=result.get("videos", []),
             metadata={"fetcher": result.get("source", "http")},
         )
 

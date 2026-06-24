@@ -28,9 +28,26 @@
       "items": {
         "type": "object",
         "properties": {
-          "url": { "type": "string", "description": "图片 URL" },
+          "url": { "type": "string", "description": "图片原始 URL" },
           "alt": { "type": "string", "description": "图片 alt 文本" },
-          "ocr_text": { "type": "string", "description": "OCR 识别出的文字" }
+          "ocr_text": { "type": "string", "description": "OCR 识别出的文字" },
+          "local_path": { "type": "string", "description": "下载到本地的文件路径" },
+          "filename": { "type": "string", "description": "本地文件名" },
+          "size": { "type": "integer", "description": "文件大小（字节）" }
+        }
+      }
+    },
+    "videos": {
+      "type": "array",
+      "description": "文章中的视频",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "description": "视频原始 URL" },
+          "type": { "type": "string", "enum": ["video", "iframe"], "description": "视频类型" },
+          "local_path": { "type": "string", "description": "下载到本地的文件路径" },
+          "filename": { "type": "string", "description": "本地文件名" },
+          "size": { "type": "integer", "description": "文件大小（字节）" }
         }
       }
     },
