@@ -24,6 +24,7 @@ from extractors.ocr import ocr_images
 from extractors.media import download_media_batch
 
 CST = timezone(timedelta(hours=8))
+ARCHIVE_ROOT = Path.home() / "Her工作间" / "knowledge-base" / "archive"
 
 
 def detect_input_type(raw: str) -> tuple[str, str]:
@@ -97,12 +98,69 @@ def run_ocr_on_images(result: dict) -> dict:
     return result
 
 
+def _archive_dir_name(result: dict) -> str:
+    """生成素材库目录名：日期_标题"""
+    now = datetime.now(CST)
+    date_prefix = now.strftime("%Y%m%d_%H%M%S")
+    title = result.get("title", "").strip()
+    if title:
+        safe_title = re.sub(r'[^\w一-鿿-]', '_', title)[:40]
+        return f"{date_prefix}_{safe_title}"
+    return date_prefix
+
+
+def save_raw_archive(result: dict) -> str | None:
+    """
+    保存原始素材到知识库 archive 目录
+    结构：archive/{目录名}/raw.json + content.md + media/
+    返回保存路径
+    """
+    dir_name = _archive_dir_name(result)
+    archive_dir = ARCHIVE_ROOT / dir_name
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    # 保存 raw.json（完整 collector 输出）
+    raw_file = archive_dir / "raw.json"
+    raw_file.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # 保存 content.md（纯正文，方便快速浏览）
+    content_md = result.get("content_md", "")
+    if content_md:
+        content_file = archive_dir / "content.md"
+        content_file.write_text(content_md, encoding="utf-8")
+
+    # 复制媒体文件到素材库
+    images = result.get("images", [])
+    videos = result.get("videos", [])
+    has_media = any(img.get("local_path") for img in images) or any(vid.get("local_path") for vid in videos)
+
+    if has_media:
+        import shutil
+        media_dir = archive_dir / "media"
+        media_dir.mkdir(exist_ok=True)
+        for img in images:
+            src = img.get("local_path", "")
+            if src and os.path.isfile(src):
+                dst = media_dir / img.get("filename", os.path.basename(src))
+                if not dst.exists():
+                    shutil.copy2(src, dst)
+        for vid in videos:
+            src = vid.get("local_path", "")
+            if src and os.path.isfile(src):
+                dst = media_dir / vid.get("filename", os.path.basename(src))
+                if not dst.exists():
+                    shutil.copy2(src, dst)
+
+    return str(archive_dir)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Collector - 信息收集统一入口")
     parser.add_argument("input", nargs="?", help="URL、文件路径或文本")
     parser.add_argument("--text", action="store_true", help="将输入作为纯文本处理")
     parser.add_argument("--no-ocr", action="store_true", help="跳过图片 OCR")
     parser.add_argument("--no-download", action="store_true", help="跳过媒体下载")
+    parser.add_argument("--no-archive", action="store_true", help="跳过原始素材归档")
     parser.add_argument("--media-dir", help="媒体文件保存目录（默认与 JSON 同目录下的 media/）")
     parser.add_argument("--output-dir", help="保存结果到指定目录")
     args = parser.parse_args()
@@ -159,6 +217,12 @@ def main():
     # OCR 处理
     if not args.no_ocr:
         result = run_ocr_on_images(result)
+
+    # 保存原始素材到 archive
+    if not args.no_archive:
+        archive_path = save_raw_archive(result)
+        if archive_path:
+            result["_archive_path"] = archive_path
 
     # 输出
     output = json.dumps(result, ensure_ascii=False, indent=2)

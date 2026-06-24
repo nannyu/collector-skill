@@ -57,6 +57,20 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 
 JSON，包含 title / content_md / images / videos / author / metadata 等字段。
 
+### 原始素材归档
+
+每次收录自动保存原始素材到 `~/Her工作间/knowledge-base/archive/`：
+
+```
+archive/
+└── 20260624_143059_GitHub_-_eze-is_web-access/
+    ├── raw.json       # collector 完整输出
+    ├── content.md     # 纯正文 Markdown
+    └── media/         # 原始图片/视频
+```
+
+跳过归档：`--no-archive`
+
 ## 第二步：Organizer（分类归档）
 
 Agent 读取 collector 输出后，调用 organizer 归档到知识库：
