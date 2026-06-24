@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Collector Output Schema",
+  "description": "collector skill 的统一输出格式",
+  "type": "object",
+  "required": ["source_type", "content_md", "extracted_at"],
+  "properties": {
+    "source_type": {
+      "type": "string",
+      "enum": ["wechat", "xiaohongshu", "pdf", "webpage", "text"],
+      "description": "内容来源类型"
+    },
+    "source_url": {
+      "type": "string",
+      "description": "原始链接（纯文本输入时为空）"
+    },
+    "title": {
+      "type": "string",
+      "description": "文章/笔记标题"
+    },
+    "content_md": {
+      "type": "string",
+      "description": "正文内容，Markdown 格式"
+    },
+    "images": {
+      "type": "array",
+      "description": "文章中的图片",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "description": "图片 URL" },
+          "alt": { "type": "string", "description": "图片 alt 文本" },
+          "ocr_text": { "type": "string", "description": "OCR 识别出的文字" }
+        }
+      }
+    },
+    "author": {
+      "type": "string",
+      "description": "作者"
+    },
+    "published_at": {
+      "type": "string",
+      "description": "发布时间（如有）"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "额外元数据",
+      "properties": {
+        "fetcher": {
+          "type": "string",
+          "enum": ["jina", "http", "ssr_state", "cdp", "pdfplumber", "pdftotext"],
+          "description": "使用的提取方式"
+        },
+        "error": {
+          "type": "string",
+          "description": "提取失败时的错误信息"
+        }
+      }
+    },
+    "extracted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "提取时间（ISO 8601，CST 时区）"
+    }
+  }
+}
