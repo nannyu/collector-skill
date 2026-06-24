@@ -48,10 +48,13 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 
 ### 反爬策略
 
-三级 fallback：
+四级 fallback：
 1. **Jina Reader**（秒级）—— 云端 headless Chrome，覆盖 80% 公开内容
 2. **直接 HTTP**（秒级）—— HTML 解析
-3. **CDP 浏览器**（十秒级）—— 连接用户本地 Chrome，复用登录态（需 web-access skill）
+3. **Scrapling**（秒级，可选）—— TLS 指纹伪装，绕过基础反爬
+4. **CDP 浏览器**（十秒级）—— 连接用户本地 Chrome，复用登录态（需 web-access skill）
+
+每级自动检测可用性，失败后自动降级到下一级。
 
 ### 输出格式
 
@@ -112,15 +115,17 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/organizer.py" collector_output.json \
 collector-skill/
 ├── SKILL.md
 ├── scripts/
-│   ├── collector.py          # 内容提取入口
+│   ├── collector.py          # 内容提取入口（含 fallback 链）
 │   ├── organizer.py          # 分类归档入口
 │   └── extractors/
-│       ├── web.py            # 网页提取
+│       ├── web.py            # 网页提取（Jina + HTTP）
 │       ├── wechat.py         # 微信文章
 │       ├── xiaohongshu.py    # 小红书
 │       ├── pdf_extract.py    # PDF
 │       ├── media.py          # 媒体下载
-│       └── ocr.py            # 图片 OCR
+│       ├── ocr.py            # 图片 OCR
+│       ├── cdp_fetch.py      # CDP 浏览器（需 web-access）
+│       └── scrapling_fetch.py # Scrapling TLS 指纹（可选）
 └── references/
     ├── output-schema.json
     └── organizer-guide.md
