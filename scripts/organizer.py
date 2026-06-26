@@ -218,7 +218,7 @@ def update_index(entry_path: Path, collector_output: dict, category: str, subcat
 
 def main():
     parser = argparse.ArgumentParser(description="Organizer - 知识库归档整理")
-    parser.add_argument("input_json", help="collector 输出的 JSON 文件路径，或 - 从 stdin 读取")
+    parser.add_argument("input_json", nargs="?", help="collector 输出的 JSON 文件路径，或 - 从 stdin 读取")
     parser.add_argument("--category", "-c", help="一级分类（tech/product/life/reading/inspiration/inbox）")
     parser.add_argument("--subcategory", "-s", help="二级分类")
     parser.add_argument("--summary", help="AI 生成的摘要")
@@ -226,7 +226,33 @@ def main():
     parser.add_argument("--tags", nargs="*", help="标签列表")
     parser.add_argument("--notes", help="用户自己的笔记")
     parser.add_argument("--list-categories", action="store_true", help="列出所有分类")
+    parser.add_argument("--obsidian", action="store_true", help="同时写入 Obsidian vault")
+    parser.add_argument("--obsidian-only", action="store_true", help="只写入 Obsidian vault（跳过 knowledge-base）")
+    parser.add_argument("--no-obsidian", action="store_true", help="跳过 vault 写入")
+    parser.add_argument("--init-obsidian", action="store_true", help="初始化 Obsidian 配置")
+    parser.add_argument("--refresh-index", action="store_true", help="重建 vault 索引页（MOC + tag）")
     args = parser.parse_args()
+
+    # Obsidian 初始化
+    if args.init_obsidian:
+        from obsidian import init_config_interactive
+        init_config_interactive()
+        return
+
+    # 全量重建索引
+    if args.refresh_index:
+        from obsidian import load_config, refresh_all_moc, refresh_all_tags
+        config = load_config()
+        if not config:
+            print("错误：未配置 Obsidian，请先运行 --init-obsidian", file=sys.stderr)
+            sys.exit(1)
+        vault_root = Path(config["obsidian_vault"])
+        subdir = config.get("vault_subdir", "Collector")
+        categories = load_categories()
+        refresh_all_moc(vault_root, subdir, categories)
+        refresh_all_tags(vault_root, subdir)
+        print(json.dumps({"status": "ok", "message": "索引已重建"}, ensure_ascii=False))
+        return
 
     if args.list_categories:
         cats = load_categories()
@@ -239,6 +265,10 @@ def main():
             else:
                 print(f"  {k}: {label}")
         return
+
+    # 以下操作需要 input_json
+    if not args.input_json:
+        parser.error("需要提供 collector 输出的 JSON 文件路径")
 
     # 读取 collector 输出
     if args.input_json == "-":
@@ -266,14 +296,21 @@ def main():
     category = args.category or "inbox"
     subcategory = args.subcategory or ""
 
-    # 保存
-    entry_path = save_entry(entry_md, category, subcategory, filename)
+    # 保存到 knowledge-base（除非 --obsidian-only）
+    if not args.obsidian_only:
+        entry_path = save_entry(entry_md, category, subcategory, filename)
+        copy_media_files(data, entry_path.parent)
+        update_index(entry_path, data, category, subcategory)
+    else:
+        entry_path = Path(filename)  # placeholder for output
 
-    # 复制媒体文件
-    copy_media_files(data, entry_path.parent)
-
-    # 更新索引
-    update_index(entry_path, data, category, subcategory)
+    # Obsidian vault 同步
+    use_obsidian = args.obsidian or (not args.no_obsidian and not args.obsidian_only)
+    if use_obsidian:
+        from obsidian import load_config, sync_to_vault
+        config = load_config()
+        if config and config.get("obsidian_output"):
+            sync_to_vault(entry_md, data, category, subcategory, filename, config)
 
     print(json.dumps({
         "status": "ok",

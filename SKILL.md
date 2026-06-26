@@ -128,6 +128,48 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/organizer.py" collector_output.json \
 
 **自动归档原则**：收到链接后立即执行完整流水线（collector → organizer → 知识库），不要中途停下来问用户"要归档吗""分类放哪"。用户信任你来判断分类和摘要。
 
+## Obsidian 集成
+
+将笔记同步到 Obsidian vault，自动建立双向链接、MOC 索引和标签索引。
+
+### 初始化
+
+```bash
+python3 "${CLAUDE_SKILL_DIR}/scripts/organizer.py" --init-obsidian
+```
+
+交互式配置 vault 路径和子目录名，配置保存到 `~/.collector-config.json`。
+
+### 使用
+
+```bash
+# 归档到 knowledge-base + Obsidian vault
+python3 "${CLAUDE_SKILL_DIR}/scripts/organizer.py" collector_output.json \
+  --category tech --tags "AI-agent" --obsidian
+
+# 只写入 Obsidian vault（跳过 knowledge-base）
+python3 "${CLAUDE_SKILL_DIR}/scripts/organizer.py" collector_output.json \
+  --category tech --tags "AI-agent" --obsidian-only
+
+# 全量重建 vault 索引（MOC + tag 页面）
+python3 "${CLAUDE_SKILL_DIR}/scripts/organizer.py" --refresh-index
+```
+
+### Vault 内部结构
+
+```
+{vault}/{vault_subdir}/
+├── _MOC/           # 分类索引页（技术.md、产品.md…）
+├── _Tags/          # 标签索引页（AI-agent.md、LLM.md…）
+├── tech/ai-agent/  # 笔记按分类存放
+├── tech/tools/
+└── reading/
+```
+
+### 自动链接
+
+收录新笔记时，自动扫描 vault 已有笔记，通过 tag 重叠和标题关键词匹配相关笔记，在"摘要"和"关键知识点"段落注入 `[[双向链接]]`。每篇最多 5 条链接。
+
 ## 文件结构
 
 ```
@@ -136,6 +178,7 @@ collector-skill/
 ├── scripts/
 │   ├── collector.py          # 内容提取入口（含 fallback 链）
 │   ├── organizer.py          # 分类归档入口
+│   ├── obsidian.py           # Obsidian vault 同步（双向链接、MOC、tag 索引）
 │   └── extractors/
 │       ├── web.py            # 网页提取（Jina + HTTP）
 │       ├── wechat.py         # 微信文章
