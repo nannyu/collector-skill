@@ -10,6 +10,7 @@
 - **媒体下载**：自动下载图片/视频，支持图片 OCR（tesseract）
 - **分类归档**：自动分类、生成摘要、关键知识点提取，写入知识库
 - **图片笔记**：小红书等平台的图片笔记，提取全部图片并 OCR，正确处理 swiper 循环顺序
+- **Obsidian 集成**：自动同步到 Obsidian vault，建立双向链接、MOC 索引和标签索引
 
 ## 快速开始
 
@@ -40,6 +41,22 @@ python3 scripts/organizer.py collector_output.json \
   --key-points "要点1" "要点2" \
   --tags "agent" "LLM"
 ```
+
+## Obsidian 集成
+
+```bash
+# 初始化 vault 配置
+python3 scripts/organizer.py --init-obsidian
+
+# 归档到 knowledge-base + vault
+python3 scripts/organizer.py collector_output.json \
+  --category tech --tags "AI-agent" --obsidian
+
+# 全量重建 vault 索引
+python3 scripts/organizer.py --refresh-index
+```
+
+自动建立双向链接、MOC 分类索引页、标签索引页。详见 [Obsidian 集成指南](references/obsidian-guide.md)。
 
 ## 依赖
 
