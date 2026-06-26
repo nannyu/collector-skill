@@ -60,6 +60,19 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 
 JSON，包含 title / content_md / images / videos / author / metadata 等字段。
 
+### 图片笔记处理
+
+小红书等平台的图片笔记，正文内容在图片里而非文字中。Collector 会：
+
+1. **提取全部 swiper 图片**（去重，排除 `swiper-slide-duplicate` 克隆 slide，保证正确顺序）
+2. **自动 OCR** 提取图片中的文字（需 tesseract + chi_sim 语言包）
+3. **标记图片笔记**：`metadata.image_note: true`，body 短但图片多
+4. **合并 OCR 文本**到 `content_md`，方便搜索和阅读
+
+**Swiper Loop 注意事项**：小红书用无限循环模式，swiper 会把最后一张图克隆到 slide 0（开头），第一张图克隆到末尾。提取图片时必须跳过带 `swiper-slide-duplicate` class 的克隆 slide，否则顺序会错乱（最后一张排到最前面）。
+
+Agent 处理图片笔记时，应将 OCR 文本视为主要内容，而非仅依赖 body 字段。
+
 ### 原始素材归档
 
 每次收录自动保存原始素材到 `~/Her工作间/knowledge-base/archive/`：
@@ -88,6 +101,10 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/organizer.py" collector_output.json \
   --notes "我的感想..."
 ```
 
+### 文件命名
+
+归档的 md 文档**必须使用文章真实标题命名**，格式：`{日期}_{标题}.md`。标题提取优先级：og:title meta > h1 > 页面标题。Organizer 已自动处理。
+
 ### 分类体系
 
 | 一级分类 | 二级分类 | 适用内容 |
@@ -106,8 +123,10 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/organizer.py" collector_output.json \
 1. 用户丢链接 → 调用 collector 提取内容
 2. 读取 collector 的 JSON 输出
 3. 分析内容，确定分类、生成摘要和关键知识点
-4. 调用 organizer 归档到知识库
-5. 告知用户收录结果
+4. **直接**调用 organizer 归档到知识库（无需询问用户确认）
+5. 告知用户收录结果（标题、分类、关键知识点）
+
+**自动归档原则**：收到链接后立即执行完整流水线（collector → organizer → 知识库），不要中途停下来问用户"要归档吗""分类放哪"。用户信任你来判断分类和摘要。
 
 ## 文件结构
 

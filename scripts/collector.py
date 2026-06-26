@@ -169,15 +169,16 @@ def extract_with_fallback(url: str, source_type: str) -> dict:
     else:
         result = extract_web(url)
 
-    # 检查是否有有效内容
+    # 检查是否有有效内容（排除反爬/空壳页面）
     content = result.get("content_md", "")
-    if content and len(content.strip()) > 50:
+    images = result.get("images", [])
+    if _is_valid_content(content, source_type, images):
         return result
 
     # Level 3: Scrapling（TLS 指纹伪装，可选）
     if _scrapling_available():
         scrapling_result = fetch_via_scrapling(url)
-        if scrapling_result and len(scrapling_result.get("content_md", "").strip()) > 50:
+        if scrapling_result and _is_valid_content(scrapling_result.get("content_md", ""), source_type, scrapling_result.get("images", [])):
             return build_result(
                 source_type, url,
                 title=scrapling_result.get("title", ""),
@@ -190,18 +191,66 @@ def extract_with_fallback(url: str, source_type: str) -> dict:
     # Level 4: CDP 浏览器（需要 web-access skill，复用登录态）
     if _cdp_available():
         cdp_result = fetch_via_cdp(url)
-        if cdp_result and len(cdp_result.get("content_md", "").strip()) > 50:
+        if cdp_result and _is_valid_content(cdp_result.get("content_md", ""), source_type, cdp_result.get("images", [])):
             return build_result(
                 source_type, url,
                 title=cdp_result.get("title", ""),
                 content_md=cdp_result["content_md"],
                 images=cdp_result.get("images", []),
                 videos=cdp_result.get("videos", []),
+                author=cdp_result.get("author", ""),
                 metadata={"fetcher": "cdp"},
             )
 
     # 全部失败，返回原始结果（可能有部分内容）
     return result
+
+
+def _is_valid_content(content: str, source_type: str, images: list | None = None) -> bool:
+    """检查提取到的内容是否有效（排除反爬页面、空壳页面）"""
+    text_len = len(content.strip()) if content else 0
+    image_count = len(images) if images else 0
+
+    # 图片笔记判定：有 3+ 张图片时，文字要求极低（正文在图里）
+    if image_count >= 3:
+        min_len = 10
+    elif image_count > 0:
+        min_len = 30
+    else:
+        min_len = 100
+
+    if text_len < min_len:
+        return False
+
+    # 反爬特征关键词
+    anti_spider_patterns = [
+        "请在微信客户端打开链接",
+        "antispider",
+        "验证码",
+        "captcha",
+        "人机验证",
+        "access denied",
+        "请证明您是真人",
+        "Warning: This page maybe not yet fully loaded",
+        "Warning: This page maybe requiring CAPTCHA",
+        "登录后推荐更懂你的笔记",
+        "手机号登录",
+        "扫码登录",
+        "请登录",
+    ]
+    content_lower = content.lower()
+    for pattern in anti_spider_patterns:
+        if pattern.lower() in content_lower:
+            return False
+
+    # 小红书特殊检查：如果内容只是导航和 footer，不算有效
+    if source_type == "xiaohongshu":
+        # 有效的小红书内容应该有 .note-text 或实际笔记文本
+        # 如果内容主要是 "小红书 - 你的生活兴趣社区" 这种壳页面，跳过
+        if "你的生活兴趣社区" in content and len(content) < 500:
+            return False
+
+    return True
 
 
 def main():

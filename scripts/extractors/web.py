@@ -125,9 +125,19 @@ def fetch_via_http(url: str, timeout: int = 15) -> dict | None:
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             html = resp.read().decode("utf-8", errors="replace")
-            # 提取 title
-            title_match = re.search(r"<title[^>]*>(.*?)</title>", html, re.DOTALL | re.IGNORECASE)
-            title = title_match.group(1).strip() if title_match else ""
+
+            # 提取标题：og:title > h1 > <title>（<title> 经常是站点名，优先级最低）
+            title = ""
+            og_match = re.search(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']', html, re.IGNORECASE)
+            if og_match:
+                title = og_match.group(1).strip()
+            if not title:
+                h1_match = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.DOTALL | re.IGNORECASE)
+                if h1_match:
+                    title = re.sub(r"<[^>]+>", "", h1_match.group(1)).strip()
+            if not title:
+                title_match = re.search(r"<title[^>]*>(.*?)</title>", html, re.DOTALL | re.IGNORECASE)
+                title = title_match.group(1).strip() if title_match else ""
 
             # 提取正文区域（优先 article / main / .content）
             body_match = re.search(
