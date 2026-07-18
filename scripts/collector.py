@@ -304,7 +304,7 @@ def main():
 
             title = result.get("title", "")
             updated_images, updated_videos = download_media_batch(
-                images, videos, media_dir, title=title
+                images, videos, media_dir, title=title, referer=result.get("source_url", "")
             )
             result["images"] = updated_images
             result["videos"] = updated_videos
