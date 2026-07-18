@@ -128,6 +128,18 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/organizer.py" collector_output.json \
 
 **自动归档原则**：收到链接后立即执行完整流水线（collector → organizer → 知识库），不要中途停下来问用户"要归档吗""分类放哪"。用户信任你来判断分类和摘要。
 
+## 评论区与媒体整合（强制规则）
+
+文章正文、完整评论区和评论区媒体必须归入同一个分类知识库文档，不能只把评论和媒体留在 `archive/`。Organizer 会在读取 `archive/<采集目录>/raw.json` 时自动发现并整合：
+
+- `comments_full.md` / `comments.md` / `comments.txt`：原样追加到正文下方的 `## 评论区`
+- JSON 中的 `comments` / `comments_full`：转换为可读 Markdown 后追加
+- `media/comment_images/`、`media/comment_videos/` 和 `root_comment_media_progress.json`：复制到知识库文档旁的 `media/comments/`
+- 评论区图片使用 `![](./media/comments/文件名)`，视频/Live 使用相对链接
+- 重复执行按本地路径去重，保留 `archive/` 原始素材作为证据，但阅读入口是分类后的知识库文档
+
+评论区采集完成后（状态为 `status: complete`），必须删除对应续采定时任务，避免空转。
+
 ## Obsidian 集成
 
 将笔记同步到 Obsidian vault，自动建立双向链接、MOC 索引和标签索引。
