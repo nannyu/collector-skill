@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 WeChat article extractor - Jina 优先，fallback 到直接 HTTP 解析
 """

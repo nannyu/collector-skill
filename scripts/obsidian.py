@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Obsidian 集成模块
 将 collector/organizer 的输出同步到 Obsidian vault，支持双向链接、MOC 和标签索引
@@ -14,7 +15,7 @@ from pathlib import Path
 
 CST = timezone(timedelta(hours=8))
 CONFIG_PATH = Path.home() / ".collector-config.json"
-KB_ROOT = Path.home() / "Her工作间" / "knowledge-base"
+KB_ROOT = Path.home() / "Library" / "Mobile Documents" / "iCloud~md~obsidian" / "Documents" / "Niu" / "知识库"
 
 
 def load_config() -> dict | None:

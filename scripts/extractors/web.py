@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Web extractor - Jina Reader 优先，fallback 到直接 HTTP
 """

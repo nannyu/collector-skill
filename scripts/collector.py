@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Collector - 个人信息收集统一入口
 接收 URL / 文件路径 / 文本，输出标准化 JSON
@@ -26,7 +27,7 @@ from extractors.cdp_fetch import fetch_via_cdp, _cdp_available
 from extractors.scrapling_fetch import fetch_via_scrapling, _scrapling_available
 
 CST = timezone(timedelta(hours=8))
-ARCHIVE_ROOT = Path.home() / "Her工作间" / "knowledge-base" / "archive"
+ARCHIVE_ROOT = Path.home() / "Library" / "Mobile Documents" / "iCloud~md~obsidian" / "Documents" / "Niu" / "知识库" / "archive"
 
 
 def detect_input_type(raw: str) -> tuple[str, str]:

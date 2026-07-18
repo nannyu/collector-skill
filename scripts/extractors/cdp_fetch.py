@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 CDP extractor - 通过 web-access 的 CDP Proxy 连接本地浏览器
 需要 web-access skill 的 CDP Proxy 运行在 localhost:3456

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Scrapling extractor - 可选依赖，提供 TLS 指纹伪装能力
 需要 scrapling + playwright（可选）

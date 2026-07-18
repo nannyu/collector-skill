@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 OCR helper - 对图片 URL 列表运行文字识别
 优先 pytesseract，fallback 到跳过

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Xiaohongshu extractor - Jina 优先，fallback 到直接 HTTP
 CDP 浏览器方式由 agent 通过 web-access skill 处理

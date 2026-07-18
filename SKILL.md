@@ -75,7 +75,7 @@ Agent 处理图片笔记时，应将 OCR 文本视为主要内容，而非仅依
 
 ### 原始素材归档
 
-每次收录自动保存原始素材到 `~/Her工作间/knowledge-base/archive/`：
+每次收录自动保存原始素材到 `/Users/nn/Library/Mobile Documents/iCloud~md~obsidian/Documents/Niu/知识库/archive/`：
 
 ```
 archive/
@@ -193,4 +193,4 @@ collector-skill/
     └── organizer-guide.md
 ```
 
-知识库位置：`~/Her工作间/knowledge-base/`
+知识库位置：`/Users/nn/Library/Mobile Documents/iCloud~md~obsidian/Documents/Niu/知识库/`

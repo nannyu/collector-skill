@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Organizer - 知识库归档整理
 接收 collector 输出的 JSON，生成知识条目并写入知识库
@@ -13,14 +14,18 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 CST = timezone(timedelta(hours=8))
-KB_ROOT = Path.home() / "Her工作间" / "knowledge-base"
+KB_ROOT = Path.home() / "Library" / "Mobile Documents" / "iCloud~md~obsidian" / "Documents" / "Niu" / "知识库"
 
 
 def load_categories() -> dict:
     """加载分类体系"""
     cat_file = KB_ROOT / "categories.json"
     if cat_file.exists():
-        return json.loads(cat_file.read_text(encoding="utf-8"))
+        try:
+            return json.loads(cat_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            # iCloud Drive may temporarily return Resource deadlock avoided
+            return {}
     return {}
 
 
@@ -78,7 +83,8 @@ def build_knowledge_entry(
     if subcategory:
         lines.append(f"subcategory: \"{subcategory}\"")
     if tags:
-        lines.append(f"tags: [{', '.join(f'\"{t}\"' for t in tags)}]")
+        tag_list = ", ".join(f"\"{t}\"" for t in tags)
+        lines.append(f"tags: [{tag_list}]")
     lines.append(f"collected_at: \"{now}\"")
     lines.append("---")
     lines.append("")
@@ -193,7 +199,7 @@ def update_index(entry_path: Path, collector_output: dict, category: str, subcat
     if index_file.exists():
         try:
             index = json.loads(index_file.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, FileNotFoundError):
+        except (json.JSONDecodeError, FileNotFoundError, OSError):
             index = []
 
     entry = {

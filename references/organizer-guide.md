@@ -60,7 +60,7 @@ python3 ~/Her工作间/collector-skill/scripts/organizer.py /tmp/extracted.json 
 ## 知识库位置
 
 ```
-~/Her工作间/knowledge-base/
+/Users/nn/Library/Mobile Documents/iCloud~md~obsidian/Documents/Niu/知识库/
 ├── index.json          # 全局索引（可搜索）
 ├── categories.json     # 分类体系
 ├── tech/               # 技术类

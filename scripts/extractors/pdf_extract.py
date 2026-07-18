@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 PDF extractor - 基于 pdfplumber 提取文本和表格，图片走 OCR
 """
