@@ -13,7 +13,6 @@ import re
 import subprocess
 import urllib.request
 from pathlib import Path
-from typing import List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
@@ -214,7 +213,7 @@ def download_media_batch(images: list[dict], videos: list[dict], out_dir: str, t
     """批量下载图片和视频，保留原始顺序并返回每项的校验状态。"""
     os.makedirs(out_dir, exist_ok=True)
 
-    updated_images: List[Optional[dict]] = [None] * len(images)
+    updated_images: list[dict | None] = [None] * len(images)
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
             executor.submit(download_image, img.get("url", ""), out_dir, i, title, referer): (i, img)
