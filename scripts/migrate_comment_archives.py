@@ -26,6 +26,17 @@ MIGRATIONS = [
 ]
 
 
+def _read_text_retry(path: Path) -> str:
+    for attempt in range(6):
+        try:
+            return path.read_text(encoding="utf-8")
+        except OSError as exc:
+            if getattr(exc, "errno", None) != 11 or attempt == 5:
+                raise
+            time.sleep(1.5)
+    raise RuntimeError(f"unable to read {path}")
+
+
 def comment_body(note: str) -> str:
     """提取历史笔记中已有的当前可见评论内容，不凭空生成内容。"""
     start = note.find("<details>")
@@ -46,7 +57,7 @@ def migrate(note_path: Path, archive_dir: Path, apply: bool) -> dict:
     if not archive_dir.is_dir():
         return {"note": str(note_path), "status": "missing_archive"}
 
-    text = note_path.read_text(encoding="utf-8")
+    text = _read_text_retry(note_path)
     media_sources = []
     for folder in ("media/comment_images", "media/comment_videos"):
         source_dir = archive_dir / folder
