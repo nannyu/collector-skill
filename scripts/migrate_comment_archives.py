@@ -6,7 +6,9 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
+import tempfile
 import time
 from pathlib import Path
 
@@ -31,10 +33,27 @@ def _read_text_retry(path: Path) -> str:
         try:
             return path.read_text(encoding="utf-8")
         except OSError as exc:
-            if getattr(exc, "errno", None) != 11 or attempt == 5:
+            if getattr(exc, "errno", None) != 11 or attempt == 30:
                 raise
             time.sleep(1.5)
     raise RuntimeError(f"unable to read {path}")
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    """在目标目录内临时写入后替换，避免 iCloud 中途失败留下半截笔记。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+    finally:
+        temp_path.unlink(missing_ok=True)
 
 
 def comment_body(note: str) -> str:
@@ -90,7 +109,7 @@ def migrate(note_path: Path, archive_dir: Path, apply: bool) -> dict:
             dst = target_media / src.name
             if not dst.exists():
                 shutil.copy2(src, dst)
-        note_path.write_text(new_text, encoding="utf-8")
+        _atomic_write_text(note_path, new_text)
 
     return {
         "note": str(note_path),

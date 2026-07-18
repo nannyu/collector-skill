@@ -140,6 +140,41 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/organizer.py" collector_output.json \
 
 评论区采集完成后（状态为 `status: complete`），必须删除对应续采定时任务，避免空转。
 
+## 历史归档迁移（强制规则）
+
+历史文章也必须逐步迁移到“正文下方嵌入评论区内容/媒体”的统一格式，不能因为已经存在于 `archive/` 就认为完成。迁移时遵循以下原则：
+
+1. **只新增、不破坏**：保留原知识库笔记、`archive/` 原始素材和已有人工摘要；不得删除或覆盖原始采集文件。
+2. **统一阅读入口**：在原文章正文末尾追加 `## 评论区`，把历史笔记中已有的评论正文原样或最小转换后放入正文下方；不要只保留折叠区、摘要或 archive 路径。
+3. **媒体随文嵌入**：从 `archive/<采集目录>/media/comment_images/`、`media/comment_videos/` 和续采进度文件中收集媒体，复制到对应知识库笔记旁的 `media/comments/`，在 `## 评论区` 下用相对路径嵌入。
+4. **不补写缺失内容**：历史笔记或 archive 中没有的评论和媒体不得推测；应明确标注“未包含可提取内容”，并保留 archive 作为后续核查依据。
+5. **幂等执行**：迁移脚本必须使用稳定标记（如 `<!-- collector-history-comments-migrated -->`）和媒体文件去重；重复执行不能重复追加评论区或复制同名媒体。
+6. **先预览、后应用**：批量迁移先运行 dry-run/预览，确认目标笔记和 archive 一一对应，再使用 `--apply`；应用后逐篇检查标记、评论正文和媒体引用数量。
+
+### 历史迁移命令
+
+规范迁移脚本：
+
+```bash
+python3 "${CLAUDE_SKILL_DIR}/scripts/migrate_comment_archives.py"
+python3 "${CLAUDE_SKILL_DIR}/scripts/migrate_comment_archives.py" --apply
+```
+
+该脚本当前针对已确认的历史归档映射运行。扩展迁移范围前，必须先建立“知识库笔记 → archive 目录”的明确映射，不能按标题模糊匹配后直接写入。
+
+### iCloud Drive 操作注意事项
+
+知识库位于 iCloud Drive 时，读取或写入文件可能暂时失败，常见错误包括 `Resource deadlock avoided`、`errno 11` 或文件仅存在 `dataless` 占位。遇到这些情况：
+
+- 不要把临时读取失败当成内容缺失，也不要删除或重建笔记；
+- 对单个文件采用有限次数、带间隔的重试，失败时记录该文件并继续其他文件；
+- `dataless` 文件先触发下载/等待本地内容可用，再读取和迁移；
+- 批量写入应使用临时副本或原子替换，避免中途失败留下半截笔记；
+- 批量任务中途被打断后，先检查迁移标记和末尾 `## 评论区`，再重试，禁止盲目重复追加；
+- 最终报告必须区分 `migrated`、`already_migrated`、`missing_note`、`missing_archive` 和暂时不可读文件。
+
+迁移完成后不要只检查脚本退出码；至少验证：目标笔记包含迁移标记、评论区位于正文末尾、媒体文件实际存在且 Markdown 相对路径可用，并确认 `archive/` 原始素材仍保留。
+
 ## Obsidian 集成
 
 将笔记同步到 Obsidian vault，自动建立双向链接、MOC 索引和标签索引。
@@ -190,6 +225,7 @@ collector-skill/
 ├── scripts/
 │   ├── collector.py          # 内容提取入口（含 fallback 链）
 │   ├── organizer.py          # 分类归档入口
+│   ├── migrate_comment_archives.py # 历史评论区/媒体迁移（预览 + 幂等应用）
 │   ├── obsidian.py           # Obsidian vault 同步（双向链接、MOC、tag 索引）
 │   └── extractors/
 │       ├── web.py            # 网页提取（Jina + HTTP）

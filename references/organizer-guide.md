@@ -65,6 +65,27 @@ python3 ~/Her工作间/collector-skill/scripts/organizer.py /tmp/extracted.json 
 - 文章、评论和媒体使用同一个 `--category` / `--subcategory`，确保从知识库分类入口完整阅读。
 - 续采进度出现 `status: complete` 后删除对应定时任务。
 
+## 历史归档迁移
+
+历史归档不能只停留在 `archive/`。应使用 `scripts/migrate_comment_archives.py` 将已有评论正文追加到原文章正文下方的 `## 评论区`，并将评论图片/视频复制到笔记旁的 `media/comments/` 后写入相对 Markdown 引用。
+
+```bash
+# 先预览映射、缺失项和媒体数量
+python3 scripts/migrate_comment_archives.py
+
+# 确认预览无误后应用
+python3 scripts/migrate_comment_archives.py --apply
+```
+
+迁移要求：
+
+- 保留原笔记和 archive 原始素材，只做追加和复制；
+- 使用迁移标记保证重复执行不会重复追加；
+- 评论和媒体缺失时如实记录，不推测或补写；
+- iCloud Drive 遇到 `errno 11`、`Resource deadlock avoided` 或 `dataless` 占位时，重试/等待下载后再处理，不能判定为缺失；
+- 批量迁移中断后先逐篇核对迁移标记、评论区和媒体文件，再继续执行；
+- 完成后逐篇验证正文位置、媒体存在性、相对链接和 archive 保留情况。
+
 ## 知识库位置
 
 ```
