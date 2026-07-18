@@ -273,6 +273,17 @@ def copy_media_to_vault(collector_output: dict, entry_dir: Path):
             if not dst.exists():
                 shutil.copy2(src, dst)
 
+    comment_media = collector_output.get("_comment_media", [])
+    if comment_media:
+        comment_dir = media_dir / "comments"
+        comment_dir.mkdir(exist_ok=True)
+        for item in comment_media:
+            src = item.get("local_path", "")
+            if src and os.path.isfile(src):
+                dst = comment_dir / item.get("filename", os.path.basename(src))
+                if not dst.exists():
+                    shutil.copy2(src, dst)
+
 
 def refresh_moc(vault_root: Path, subdir: str, category: str, categories: dict):
     """刷新指定分类的 MOC 页面"""
