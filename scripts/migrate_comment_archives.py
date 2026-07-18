@@ -27,7 +27,7 @@ MIGRATIONS = [
 
 
 def _read_text_retry(path: Path) -> str:
-    for attempt in range(6):
+    for attempt in range(31):
         try:
             return path.read_text(encoding="utf-8")
         except OSError as exc:
