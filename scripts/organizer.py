@@ -26,7 +26,114 @@ def load_categories() -> dict:
         except (json.JSONDecodeError, OSError):
             # iCloud Drive may temporarily return Resource deadlock avoided
             return {}
-    return {}\n\n\ndef _archive_dir_from_input(input_path: str | None) -> Path | None:\n    \"\"\"返回 collector raw.json 所在的 archive 目录。\"\"\"\n    if not input_path or input_path == \"-\":\n        return None\n    path = Path(input_path).expanduser()\n    if path.is_file():\n        return path.parent\n    return path if path.is_dir() else None\n\n\ndef _format_comments(comments) -> str:\n    \"\"\"将常见评论 JSON 结构转换为可读 Markdown。\"\"\"\n    if not isinstance(comments, list):\n        return \"\"\n    lines = []\n    for item in comments:\n        if isinstance(item, str):\n            if item.strip():\n                lines.append(item.strip())\n            continue\n        if not isinstance(item, dict):\n            continue\n        author = item.get(\"author\") or item.get(\"user\") or item.get(\"nickname\") or \"匿名用户\"\n        text = str(item.get(\"content\") or item.get(\"text\") or item.get(\"comment\") or \"\").strip()\n        if text:\n            lines.append(f\"- **{author}**：{text.replace(chr(10), chr(10) + '  ')}\")\n    return \"\\n\".join(lines)\n\n\ndef _collect_comment_media(data: dict, archive_dir: Path | None) -> list[dict]:\n    \"\"\"收集评论区媒体，支持输出字段、manifest 和续采进度文件。\"\"\"\n    found: dict[str, dict] = {}\n\n    def add(item, kind=\"image\"):\n        if isinstance(item, str):\n            item = {\"local_path\": item}\n        if not isinstance(item, dict):\n            return\n        src = item.get(\"local_path\") or item.get(\"path\") or item.get(\"file\")\n        if not src:\n            return\n        src_path = Path(str(src)).expanduser()\n        if not src_path.is_file():\n            return\n        found[str(src_path.resolve())] = {\n            \"local_path\": str(src_path.resolve()),\n            \"filename\": item.get(\"filename\") or src_path.name,\n            \"kind\": item.get(\"kind\", kind),\n        }\n\n    for key in (\"comment_images\", \"comments_images\", \"comment_videos\", \"comments_videos\", \"comment_media\", \"comments_media\"):\n        value = data.get(key, [])\n        for item in value if isinstance(value, list) else []:\n            add(item, \"video\" if \"video\" in key else \"image\")\n\n    if archive_dir and archive_dir.exists():\n        progress = archive_dir / \"root_comment_media_progress.json\"\n        if progress.is_file():\n            try:\n                raw = json.loads(progress.read_text(encoding=\"utf-8\"))\n                for item in raw.get(\"saved\", {}).values():\n                    add(item, \"video\" if item.get(\"kind\") in {\"video\", \"live\"} else \"image\")\n            except (OSError, json.JSONDecodeError):\n                pass\n        for folder, kind in ((\"media/comment_images\", \"image\"), (\"media/comment_videos\", \"video\")):\n            media_dir = archive_dir / folder\n            if media_dir.is_dir():\n                for src in sorted(media_dir.iterdir()):\n                    if src.is_file():\n                        add({\"local_path\": str(src), \"filename\": src.name, \"kind\": kind}, kind)\n    return list(found.values())\n\n\ndef enrich_comments(data: dict, input_path: str | None = None) -> dict:\n    \"\"\"把 archive 中的完整评论和媒体挂回 collector 输出。\"\"\"\n    enriched = dict(data)\n    archive_dir = _archive_dir_from_input(input_path)\n    comment_md = \"\"\n    for key in (\"comments_md\", \"comments_full_md\", \"comments_markdown\"):\n        if isinstance(enriched.get(key), str) and enriched[key].strip():\n            comment_md = enriched[key].strip()\n            break\n    if not comment_md and archive_dir:\n        for name in (\"comments_full.md\", \"comments.md\", \"comments.txt\"):\n            candidate = archive_dir / name\n            if candidate.is_file():\n                try:\n                    comment_md = candidate.read_text(encoding=\"utf-8\").strip()\n                except OSError:\n                    pass\n                if comment_md:\n                    break\n    if not comment_md:\n        for key in (\"comments_full\", \"comments\"):\n            comment_md = _format_comments(enriched.get(key))\n            if comment_md:\n                break\n    if comment_md:\n        enriched[\"_comments_markdown\"] = comment_md\n    enriched[\"_comment_media\"] = _collect_comment_media(enriched, archive_dir)\n    return enriched\n\n\ndef generate_entry_filename(title: str, source_type: str = "") -> str:
+    return {}
+
+
+def _archive_dir_from_input(input_path: str | None) -> Path | None:
+    \"\"\"返回 collector raw.json 所在的 archive 目录。\"\"\"
+    if not input_path or input_path == \"-\":
+        return None
+    path = Path(input_path).expanduser()
+    if path.is_file():
+        return path.parent
+    return path if path.is_dir() else None
+
+
+def _format_comments(comments) -> str:
+    \"\"\"将常见评论 JSON 结构转换为可读 Markdown。\"\"\"
+    if not isinstance(comments, list):
+        return \"\"
+    lines = []
+    for item in comments:
+        if isinstance(item, str):
+            if item.strip():
+                lines.append(item.strip())
+            continue
+        if not isinstance(item, dict):
+            continue
+        author = item.get(\"author\") or item.get(\"user\") or item.get(\"nickname\") or \"匿名用户\"
+        text = str(item.get(\"content\") or item.get(\"text\") or item.get(\"comment\") or \"\").strip()
+        if text:
+            lines.append(f\"- **{author}**：{text.replace(chr(10), chr(10) + '  ')}\")
+    return \"\
+\".join(lines)
+
+
+def _collect_comment_media(data: dict, archive_dir: Path | None) -> list[dict]:
+    \"\"\"收集评论区媒体，支持输出字段、manifest 和续采进度文件。\"\"\"
+    found: dict[str, dict] = {}
+
+    def add(item, kind=\"image\"):
+        if isinstance(item, str):
+            item = {\"local_path\": item}
+        if not isinstance(item, dict):
+            return
+        src = item.get(\"local_path\") or item.get(\"path\") or item.get(\"file\")
+        if not src:
+            return
+        src_path = Path(str(src)).expanduser()
+        if not src_path.is_file():
+            return
+        found[str(src_path.resolve())] = {
+            \"local_path\": str(src_path.resolve()),
+            \"filename\": item.get(\"filename\") or src_path.name,
+            \"kind\": item.get(\"kind\", kind),
+        }
+
+    for key in (\"comment_images\", \"comments_images\", \"comment_videos\", \"comments_videos\", \"comment_media\", \"comments_media\"):
+        value = data.get(key, [])
+        for item in value if isinstance(value, list) else []:
+            add(item, \"video\" if \"video\" in key else \"image\")
+
+    if archive_dir and archive_dir.exists():
+        progress = archive_dir / \"root_comment_media_progress.json\"
+        if progress.is_file():
+            try:
+                raw = json.loads(progress.read_text(encoding=\"utf-8\"))
+                for item in raw.get(\"saved\", {}).values():
+                    add(item, \"video\" if item.get(\"kind\") in {\"video\", \"live\"} else \"image\")
+            except (OSError, json.JSONDecodeError):
+                pass
+        for folder, kind in ((\"media/comment_images\", \"image\"), (\"media/comment_videos\", \"video\")):
+            media_dir = archive_dir / folder
+            if media_dir.is_dir():
+                for src in sorted(media_dir.iterdir()):
+                    if src.is_file():
+                        add({\"local_path\": str(src), \"filename\": src.name, \"kind\": kind}, kind)
+    return list(found.values())
+
+
+def enrich_comments(data: dict, input_path: str | None = None) -> dict:
+    \"\"\"把 archive 中的完整评论和媒体挂回 collector 输出。\"\"\"
+    enriched = dict(data)
+    archive_dir = _archive_dir_from_input(input_path)
+    comment_md = \"\"
+    for key in (\"comments_md\", \"comments_full_md\", \"comments_markdown\"):
+        if isinstance(enriched.get(key), str) and enriched[key].strip():
+            comment_md = enriched[key].strip()
+            break
+    if not comment_md and archive_dir:
+        for name in (\"comments_full.md\", \"comments.md\", \"comments.txt\"):
+            candidate = archive_dir / name
+            if candidate.is_file():
+                try:
+                    comment_md = candidate.read_text(encoding=\"utf-8\").strip()
+                except OSError:
+                    pass
+                if comment_md:
+                    break
+    if not comment_md:
+        for key in (\"comments_full\", \"comments\"):
+            comment_md = _format_comments(enriched.get(key))
+            if comment_md:
+                break
+    if comment_md:
+        enriched[\"_comments_markdown\"] = comment_md
+    enriched[\"_comment_media\"] = _collect_comment_media(enriched, archive_dir)
+    return enriched
+
+
+def generate_entry_filename(title: str, source_type: str = "") -> str:
     """生成知识条目的文件名"""
     now = datetime.now(CST)
     date_prefix = now.strftime("%Y%m%d")
