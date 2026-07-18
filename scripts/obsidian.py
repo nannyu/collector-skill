@@ -255,7 +255,11 @@ def copy_media_to_vault(collector_output: dict, entry_dir: Path):
     media_dir = entry_dir / "media"
     images = collector_output.get("images", [])
     videos = collector_output.get("videos", [])
-    has_media = any(img.get("local_path") for img in images) or any(vid.get("local_path") for vid in videos)
+    has_media = (
+        any(img.get("local_path") for img in images)
+        or any(vid.get("local_path") for vid in videos)
+        or any(item.get("local_path") for item in collector_output.get("_comment_media", []))
+    )
     if not has_media:
         return
 
