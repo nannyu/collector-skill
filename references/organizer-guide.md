@@ -57,6 +57,14 @@ python3 ~/Her工作间/collector-skill/scripts/organizer.py /tmp/extracted.json 
 6. 加上用户自己的笔记/感想
 7. 调用 organizer 脚本保存
 
+## 评论区与媒体
+
+- 评论正文追加在同一篇知识库文档正文下方的 `## 评论区`，不作为只存在 `archive/` 的孤立文件。
+- Organizer 会优先读取 JSON 的 `comments_full_md`，其次读取输入 JSON 同目录的 `comments_full.md` / `comments.md`，再回退到 `comments_full` / `comments`。
+- 评论图片、视频从 `comment_media` 或 archive 的 `media/comment_images/`、`media/comment_videos/` 复制到分类笔记旁的 `media/comments/`，并写入相对 Markdown 嵌入。
+- 文章、评论和媒体使用同一个 `--category` / `--subcategory`，确保从知识库分类入口完整阅读。
+- 续采进度出现 `status: complete` 后删除对应定时任务。
+
 ## 知识库位置
 
 ```

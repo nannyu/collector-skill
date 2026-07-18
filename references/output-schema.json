@@ -51,6 +51,33 @@
         }
       }
     },
+    "comments": {
+      "type": "array",
+      "description": "可见评论或一级评论；Organizer 会追加到正文下方",
+      "items": { "oneOf": [{ "type": "string" }, { "type": "object" }] }
+    },
+    "comments_full": {
+      "type": "array",
+      "description": "完整评论列表（如采集器提供）",
+      "items": { "oneOf": [{ "type": "string" }, { "type": "object" }] }
+    },
+    "comment_media": {
+      "type": "array",
+      "description": "评论区图片/视频，local_path 指向原始归档媒体",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string" },
+          "local_path": { "type": "string" },
+          "filename": { "type": "string" },
+          "kind": { "type": "string", "enum": ["image", "video", "live"] }
+        }
+      }
+    },
+    "comments_full_md": {
+      "type": "string",
+      "description": "完整评论区 Markdown；优先于 comments 使用"
+    },
     "author": {
       "type": "string",
       "description": "作者"
