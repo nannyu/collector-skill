@@ -109,7 +109,15 @@ def enrich_comments(data: dict, input_path: str | None = None) -> dict:
     comment_md = ""
     for key in ("comments_md", "comments_full_md", "comments_markdown"):
         if isinstance(enriched.get(key), str) and enriched[key].strip():
-            comment_md = enriched[key].strip()
+            value = enriched[key].strip()
+            candidate = Path(value).expanduser()
+            if candidate.is_file():
+                try:
+                    comment_md = candidate.read_text(encoding="utf-8").strip()
+                except OSError:
+                    comment_md = ""
+            else:
+                comment_md = value
             break
     if not comment_md and archive_dir:
         for name in ("comments_full.md", "comments.md", "comments.txt"):
