@@ -60,7 +60,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 6. 登录未真正同步前，不重复刷新短链、不启动全量采集，也不把当前可见评论冒充为全量结果。
 
 ### 反爬策略
-
+### 反爬策略
 四级 fallback：
 1. **Jina Reader**（秒级）—— 云端 headless Chrome，覆盖 80% 公开内容
 2. **直接 HTTP**（秒级）—— HTML 解析
@@ -68,6 +68,21 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 4. **CDP 浏览器**（十秒级）—— 连接用户本地 Chrome，复用登录态（需 web-access skill）
 
 每级自动检测可用性，失败后自动降级到下一级。
+
+### 小红书 CDN 403：使用已登录浏览器捕获原生响应
+
+当页面能显示正文图片，但裸 CDN URL、Node/Python `GET` 或页面 `fetch()` 返回 `403` / `TypeError: Failed to fetch` 时，不要继续重试旧 URL，也不要只补 `User-Agent`、`Referer` 或伪造 Cookie。小红书图片 URL 可能包含短时效签名，并校验页面来源、浏览器会话和加载上下文。
+
+按以下顺序处理：
+
+1. **详情页先验证**：连接已登录的专用 Chrome CDP target，导航到目标短链/详情页；记录标题、笔记 ID 和正文轮播图片数。首页登录正常不能替代详情页验证。
+2. **先取正文 DOM 清单**：从 `.swiper-slide img` / `.slide-item img` 读取 `currentSrc`，去重并排除 `swiper-slide-duplicate`、`avatar`、评论容器、登录弹窗、推荐区和尺寸小于正文图片的节点。这个清单是后续保存的白名单。
+3. **预热延迟加载**：轮播图可能只有首图真正发起请求。对 DOM 白名单 URL 在页面上下文中创建 `new Image()` 并等待 `onload/onerror`，或逐张切换轮播；不要让 Node 进程直接请求 CDN。
+4. **捕获 Network 响应**：开启 `Network.enable`，监听 `Network.responseReceived`，仅保留白名单 URL 对应的成功 Image 响应；用 `Network.getResponseBody(requestId)` 保存二进制。响应 URL 必须与正文白名单匹配，不能把头像、评论图和推荐图混入正文。
+5. **验证后命名**：检查响应 MIME、文件大小和图片是否可解码；只有从浏览器 Network 响应保存的完整二进制才标记为“原图”。`Page.captureScreenshot` 只能标记为“浏览器渲染截图”，不能与原图混称。
+6. **保留失败证据**：仍失败的 URL 写入 supplement/manifest，记录 `403`、超时或响应读取失败；不能创建空文件，也不能覆盖之前成功的媒体。最终报告分开列出原图、截图、失败项和 OCR 状态。
+
+推荐的完成判据：正文 DOM 图片数 = 白名单数；每个白名单项都有非空文件；文件可被图像库解码；知识库 Markdown 的相对引用全部存在；原始 `raw.json` 和补抓 manifest 仍保留。若只能看到页面但不能导出响应，可逐张截图兜底并明确标注媒体来源。
 
 ### 输出格式
 
