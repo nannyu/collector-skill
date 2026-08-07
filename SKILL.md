@@ -60,7 +60,6 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 6. 登录未真正同步前，不重复刷新短链、不启动全量采集，也不把当前可见评论冒充为全量结果。
 
 ### 反爬策略
-### 反爬策略
 四级 fallback：
 1. **Jina Reader**（秒级）—— 云端 headless Chrome，覆盖 80% 公开内容
 2. **直接 HTTP**（秒级）—— HTML 解析
