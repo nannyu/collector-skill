@@ -83,6 +83,8 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 
 推荐的完成判据：正文 DOM 图片数 = 白名单数；每个白名单项都有非空文件；文件可被图像库解码；知识库 Markdown 的相对引用全部存在；原始 `raw.json` 和补抓 manifest 仍保留。若只能看到页面但不能导出响应，可逐张截图兜底并明确标注媒体来源。
 
+**实战坑点**：不要在长时间滚动评论后才用当前页面的图片节点生成白名单；此时 DOM 可能已混入评论/推荐媒体，且正文签名 URL 可能已刷新。应在详情页初始加载后立即固定正文白名单，再在同一页面上下文预热这些 URL，最后只按白名单匹配 Network 响应。
+
 ### 输出格式
 
 JSON，包含 title / content_md / images / videos / author / metadata 等字段。
