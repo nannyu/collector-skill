@@ -68,6 +68,19 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 
 每级自动检测可用性，失败后自动降级到下一级。
 
+### 小红书正文图片：必须逐张触发懒加载并完整导出
+
+对于图片笔记，不能只保存首屏图片或仅保存 DOM 中的 URL。正文图片完整下载必须遵循以下硬性流程：
+
+1. 在详情页初始加载后，从 `.note-slider .swiper-slide[data-index]` / `.swiper-slide` 建立白名单；按 `data-index` 排序，排除所有 `swiper-slide-duplicate`，以 `max(data-index) + 1` 作为期望正文图片数，不根据当前已加载图片数估算。
+2. 在 CDP 中先启用 `Network.enable`、`Network.setCacheDisabled({cacheDisabled:true})`，再刷新详情页；不得在页面已经加载完后才开始监听网络。
+3. 通过详情页原生 Swiper 实例逐张调用 `swiper.slideTo(index)`，每张等待懒加载；必要时在同一页面上下文创建不带 `crossOrigin` 的 `new Image()` 预热同一 URL。禁止用 Node/Python 直接请求带签名的 CDN URL。
+4. 只用 `Network.responseReceived` + `Network.getResponseBody` 导出白名单 URL 对应的成功 Image 响应；若资源在缓存中，使用 `Page.getResourceTree` + `Page.getResourceContent` 读取同一浏览器资源。URL 签名刷新时以当前 DOM 的 `currentSrc` 和对应请求为准。
+5. 每个文件必须检查 MIME、非零字节并可由图像库解码；保存 `body-image-manifest.json`，记录 `expected_count`、每个 `data-index`、URL、文件、字节数和失败原因。
+6. 只有 `expected_count == downloaded_count` 且全部文件验证通过时，才把 `metadata.image_download_status` 设为 `complete`，才可在回复中称“正文图片已全部保存”。浏览器截图只能作为明确标注的 `rendered_screenshot` 兜底，不能冒充原图。
+
+若任一正文图缺失，状态必须是 `partial`，保留 manifest 和断点，禁止把部分图片交给 Organizer 后报告为完成。
+
 ### 小红书 CDN 403：使用已登录浏览器捕获原生响应
 
 当页面能显示正文图片，但裸 CDN URL、Node/Python `GET` 或页面 `fetch()` 返回 `403` / `TypeError: Failed to fetch` 时，不要继续重试旧 URL，也不要只补 `User-Agent`、`Referer` 或伪造 Cookie。小红书图片 URL 可能包含短时效签名，并校验页面来源、浏览器会话和加载上下文。
