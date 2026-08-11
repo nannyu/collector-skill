@@ -70,6 +70,8 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 
 ### 小红书正文图片：必须逐张触发懒加载并完整导出
 
+**硬性规则（用户要求）：小红书图片禁止直接请求或使用 CDN URL。** 必须连接已登录的详情页浏览器上下文，逐张触发懒加载，并仅从浏览器原生网络响应导出本地文件。遇到 403、超时或响应读取失败时，保留失败证据和 manifest；不得把远程 CDN 链接、页面 URL 或截图冒充为已保存的正文原图。
+
 对于图片笔记，不能只保存首屏图片或仅保存 DOM 中的 URL。正文图片完整下载必须遵循以下硬性流程：
 
 1. 在详情页初始加载后，从 `.note-slider .swiper-slide[data-index]` / `.swiper-slide` 建立白名单；按 `data-index` 排序，排除所有 `swiper-slide-duplicate`，以 `max(data-index) + 1` 作为期望正文图片数，不根据当前已加载图片数估算。
