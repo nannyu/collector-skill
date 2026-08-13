@@ -312,21 +312,25 @@ def main():
                 media_dir = str(Path.home() / "Her工作间" / "collected" / "media")
 
             title = result.get("title", "")
-            if source_type == "xiaohongshu" and videos:
-                # 图片沿用既有路径；视频使用受控的浏览器→yt-dlp→ffprobe→Whisper 流程。
-                updated_images, _ = download_media_batch(
-                    images, [], media_dir, title=title, referer=result.get("source_url", "")
-                )
-                result["images"] = updated_images
+            if source_type == "xiaohongshu":
+                # 小红书正文图片也禁止走 HTTP downloader；视频仅在详情页确认为视频笔记后处理。
+                result["images"] = images
                 try:
                     detail = resolve_xhs_detail(processed)
-                    video = download_and_transcribe_xhs_video(detail, media_dir)
-                    result["videos"] = [video]
-                    result.setdefault("metadata", {}).update({
-                        "video_pipeline": "dedicated_browser_detail_then_ytdlp_then_ffprobe_then_whisper",
-                        "video_status": "complete",
-                        "transcript_status": "complete",
-                    })
+                    if not detail.get("videos"):
+                        result["videos"] = []
+                        result.setdefault("metadata", {}).update({
+                            "video_pipeline": "dedicated_browser_detail_then_ytdlp_then_ffprobe_then_whisper",
+                            "video_status": "not_applicable",
+                        })
+                    else:
+                        video = download_and_transcribe_xhs_video(detail, media_dir)
+                        result["videos"] = [video]
+                        result.setdefault("metadata", {}).update({
+                            "video_pipeline": "dedicated_browser_detail_then_ytdlp_then_ffprobe_then_whisper",
+                            "video_status": "complete",
+                            "transcript_status": "complete",
+                        })
                     # 用已验证详情页的主体信息补全静态提取；不写入含 token 的详情地址。
                     result["title"] = detail.get("title") or result.get("title", "")
                     result["author"] = detail.get("author") or result.get("author", "")
