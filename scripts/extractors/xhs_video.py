@@ -53,8 +53,8 @@ def resolve_xhs_detail(url: str) -> dict[str, Any]:
     blocked_markers = ("安全限制", "访问频繁", "IP存在风险", "当前笔记暂时无法浏览", "页面不见了")
     if any(marker in title or marker in body for marker in blocked_markers):
         raise RuntimeError("小红书详情页触发安全限制；已停止视频下载，避免将风控页归档为正文")
-    if result.get("loginRequired"):
-        raise RuntimeError("小红书详情页仍要求登录；请完成网页端授权后再试")
+    # 视频下载只需要可验证的详情页和可播放视频；页面存在普通登录入口不等于
+    # 目标视频不可见。评论全量采集才需要更严格的登录态门槛。
     if "xiaohongshu.com/" not in href or not title:
         raise RuntimeError("专用浏览器未取得可验证的小红书详情页标题或地址")
     return result
