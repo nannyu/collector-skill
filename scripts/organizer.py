@@ -242,6 +242,18 @@ def build_knowledge_entry(
                 lines.append(f"- [{fn}](./media/{fn}){sz_mb}")
             lines.append("")
 
+            transcript_paths = [vid.get("subtitle_paths") or {} for vid in downloaded_videos]
+            if any(paths.get("srt") or paths.get("txt") for paths in transcript_paths):
+                lines.append("### 字幕与转写")
+                for paths in transcript_paths:
+                    if paths.get("srt"):
+                        lines.append(f"- [SRT 字幕](./media/{Path(paths['srt']).name})")
+                    if paths.get("txt"):
+                        lines.append(f"- [完整转写文本](./media/{Path(paths['txt']).name})")
+                    if paths.get("json"):
+                        lines.append(f"- [Whisper 原始结果 JSON](./media/{Path(paths['json']).name})")
+                lines.append("")
+
     # 用户笔记
     if my_notes:
         lines.append("## 我的笔记")
@@ -327,6 +339,12 @@ def copy_media_files(collector_output: dict, entry_dir: Path):
             dst = media_dir / vid.get("filename", os.path.basename(src))
             if not dst.exists():
                 shutil.copy2(src, dst)
+        for transcript_path in (vid.get("subtitle_paths") or {}).values():
+            transcript = Path(str(transcript_path)).expanduser()
+            if transcript.is_file():
+                dst = media_dir / transcript.name
+                if not dst.exists():
+                    shutil.copy2(transcript, dst)
 
     comment_media = collector_output.get("_comment_media", [])
     if comment_media:

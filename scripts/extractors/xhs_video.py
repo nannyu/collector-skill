@@ -103,7 +103,7 @@ def download_and_transcribe_xhs_video(resolved: dict[str, Any], out_dir: str) ->
     template = str(out / f"{prefix}.%(ext)s")
     proc = subprocess.run([
         "yt-dlp", "--no-warnings", "--no-progress", "--no-playlist", "-f", "best",
-        "--write-info-json", "-o", template, target_url,
+        "-o", template, target_url,
     ], capture_output=True, text=True, timeout=300)
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip().splitlines()[-1:]
