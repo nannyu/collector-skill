@@ -154,6 +154,13 @@ def save_raw_archive(result: dict) -> str | None:
                 dst = media_dir / vid.get("filename", os.path.basename(src))
                 if not dst.exists():
                     shutil.copy2(src, dst)
+            # 字幕/转写是视频的一部分：保留 SRT、纯文本和 Whisper JSON 原始结果。
+            for transcript_path in (vid.get("subtitle_paths") or {}).values():
+                transcript = Path(str(transcript_path)).expanduser()
+                if transcript.is_file():
+                    dst = media_dir / transcript.name
+                    if not dst.exists():
+                        shutil.copy2(transcript, dst)
 
     return str(archive_dir)
 
@@ -291,12 +298,12 @@ def main():
         print(json.dumps({"error": str(e), "source_type": source_type}, ensure_ascii=False))
         sys.exit(1)
 
-    # 下载媒体文件（图片 + 视频）
+    # 下载媒体文件。小红书视频必须先由专用浏览器取得详情页，再交给 yt-dlp；
+    # 禁止退回到对 xhscdn 视频 URL 的直接下载。
     if not args.no_download:
         images = result.get("images", [])
         videos = result.get("videos", [])
         if images or videos:
-            # 确定媒体保存目录
             if args.media_dir:
                 media_dir = str(Path(args.media_dir).expanduser())
             elif args.output_dir:
@@ -305,11 +312,42 @@ def main():
                 media_dir = str(Path.home() / "Her工作间" / "collected" / "media")
 
             title = result.get("title", "")
-            updated_images, updated_videos = download_media_batch(
-                images, videos, media_dir, title=title, referer=result.get("source_url", "")
-            )
-            result["images"] = updated_images
-            result["videos"] = updated_videos
+            if source_type == "xiaohongshu" and videos:
+                # 图片沿用既有路径；视频使用受控的浏览器→yt-dlp→ffprobe→Whisper 流程。
+                updated_images, _ = download_media_batch(
+                    images, [], media_dir, title=title, referer=result.get("source_url", "")
+                )
+                result["images"] = updated_images
+                try:
+                    detail = resolve_xhs_detail(processed)
+                    video = download_and_transcribe_xhs_video(detail, media_dir)
+                    result["videos"] = [video]
+                    result.setdefault("metadata", {}).update({
+                        "video_pipeline": "dedicated_browser_detail_then_ytdlp_then_ffprobe_then_whisper",
+                        "video_status": "complete",
+                        "transcript_status": "complete",
+                    })
+                    # 用已验证详情页的主体信息补全静态提取；不写入含 token 的详情地址。
+                    result["title"] = detail.get("title") or result.get("title", "")
+                    result["author"] = detail.get("author") or result.get("author", "")
+                    if detail.get("body"):
+                        result["content_md"] = detail["body"]
+                except Exception as exc:
+                    result["videos"] = [{
+                        "type": "video", "status": "failed", "error": str(exc),
+                        "local_path": "", "filename": "", "size": 0,
+                        "download_method": "dedicated_browser_detail_then_ytdlp",
+                    }]
+                    result.setdefault("metadata", {}).update({
+                        "video_status": "failed", "transcript_status": "not_available",
+                        "video_pipeline_error": str(exc),
+                    })
+            else:
+                updated_images, updated_videos = download_media_batch(
+                    images, videos, media_dir, title=title, referer=result.get("source_url", "")
+                )
+                result["images"] = updated_images
+                result["videos"] = updated_videos
 
     # OCR 处理
     if not args.no_ocr:
