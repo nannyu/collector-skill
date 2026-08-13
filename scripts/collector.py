@@ -25,6 +25,7 @@ from extractors.ocr import ocr_images
 from extractors.media import download_media_batch
 from extractors.cdp_fetch import fetch_via_cdp, _cdp_available
 from extractors.scrapling_fetch import fetch_via_scrapling, _scrapling_available
+from extractors.xhs_video import download_and_transcribe_xhs_video, resolve_xhs_detail
 
 CST = timezone(timedelta(hours=8))
 ARCHIVE_ROOT = Path.home() / "Library" / "Mobile Documents" / "iCloud~md~obsidian" / "Documents" / "Niu" / "知识库" / "archive"
