@@ -80,6 +80,25 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 
 每级自动检测可用性，失败后自动降级到下一级。
 
+### 小红书视频：专用浏览器 → yt-dlp → ffprobe → Whisper
+
+视频笔记必须先由本机小红书专用浏览器（9223 Profile）打开短链，取得可验证的详情页；详情页临时参数只在当前 `yt-dlp` 子进程中使用，**不得**写入 raw JSON、分类笔记或回复。随后按以下流水线执行：
+
+1. `yt-dlp` 从完整详情页解析并下载视频；不导出 Cookie，不对 `xhscdn` 视频 URL 直接请求。
+2. `ffprobe` 必须确认容器可读、存在视频流、时长大于 0 且文件非空。
+3. Whisper 使用中文与领域提示词生成 `.srt`、`.txt`、`.json` 三种转写产物。
+4. archive 保存视频和三种转写；Organizer 把它们复制到分类笔记的 `media/`，并生成“字幕与转写”链接。
+
+任一步失败都必须分别写入 `metadata.video_status` / `transcript_status`；不得将已解析 URL、点击下载或只有简介文本说成视频/字幕已保存。
+
+命令入口保持不变：
+
+```bash
+python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://www.xiaohongshu.com/explore/..."
+```
+
+**完成判据：** archive 和分类笔记媒体目录中均存在可由 `ffprobe` 读取的视频，以及非空的 SRT、TXT、Whisper JSON；Markdown 的相对链接可用。
+
 ### 小红书正文图片：必须逐张触发懒加载并完整导出
 
 **硬性规则（用户要求）：小红书图片禁止直接请求或使用 CDN URL。** 必须连接已登录的详情页浏览器上下文，逐张触发懒加载，并仅从浏览器原生网络响应导出本地文件。遇到 403、超时或响应读取失败时，保留失败证据和 manifest；不得把远程 CDN 链接、页面 URL 或截图冒充为已保存的正文原图。

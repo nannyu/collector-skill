@@ -303,7 +303,7 @@ def main():
     if not args.no_download:
         images = result.get("images", [])
         videos = result.get("videos", [])
-        if images or videos:
+        if images or videos or source_type == "xiaohongshu":
             if args.media_dir:
                 media_dir = str(Path(args.media_dir).expanduser())
             elif args.output_dir:
