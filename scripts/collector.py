@@ -49,7 +49,7 @@ def detect_input_type(raw: str) -> tuple[str, str]:
     if re.match(r"https?://", text):
         if "mp.weixin.qq.com" in text:
             return "wechat", text
-        if "xiaohongshu.com" in text or "xhslink.com" in text:
+        if "xiaohongshu.com" in text or "xhslink.com" in text or "xhslink.cn" in text:
             return "xiaohongshu", text
         return "webpage", text
 
