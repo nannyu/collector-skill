@@ -46,6 +46,15 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 | 其他 URL | 普通网页 | Jina → HTTP |
 | `--text` 参数 | 纯文本 | 直接格式化 |
 
+### 微信文章正文污染质量门槛
+
+微信 HTTP 提取有时会在正文末尾附加整页 JavaScript、页面框架或广告脚本。归档前必须检查 `content_md`：若正文中出现大量 `localStorage`、`navigator.userAgent`、`function` 等页面脚本，不能直接交给 Organizer。
+
+1. 保留 Collector 原始输出及其 `raw.json` 作为可复核证据，不覆盖或伪装为干净正文；
+2. 仅在存在明确、可验证的文章结束标记时，生成单独的 `normalized.json` / 清洗版正文供 Organizer 使用，并记录删除范围与原因；
+3. 若没有可靠结束边界，改用浏览器 DOM 回退提取，或明确标为提取污染失败；不得猜测截断位置；
+4. 最终分类笔记必须验证不包含页面脚本，且图片、原始响应和清洗依据都保留在 archive。
+
 ### 小红书扫码登录与二次确认
 
 小红书网页端扫码登录不应只依据手机端提示判断成功。部分账号在首次扫码后还会出现第二次扫码确认、网页端授权确认或安全验证；手机端显示“登录成功”时，网页端可能仍保留登录弹窗并限制完整评论。
