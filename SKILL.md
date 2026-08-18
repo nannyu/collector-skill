@@ -84,8 +84,8 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 四级 fallback：
 1. **Jina Reader**（秒级）—— 云端 headless Chrome，覆盖 80% 公开内容
 2. **直接 HTTP**（秒级）—— HTML 解析
-3. **Scrapling**（秒级，可选）—— TLS 指纹伪装，绕过基础反爬
-4. **CDP 浏览器**（十秒级）—— 连接用户本地 Chrome，复用登录态（需 web-access skill）
+3. **Scrapling**（秒级，可选）—— 仅用于公开页面的兼容性提取；不得启用或配置隐身、挑战绕过、指纹伪装等规避反爬能力
+4. **CDP 浏览器**（十秒级）—— 连接用户已登录的本地 Chrome，以正常页面渲染和允许的交互完成采集（需 web-access skill）
 
 每级自动检测可用性，失败后自动降级到下一级。
 
