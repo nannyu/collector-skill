@@ -80,12 +80,29 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/collector.py" "https://example.com" --media
 
 技能只记录路由策略与验证结果，不记录代理凭据、订阅内容或登录令牌。
 
+### Agent Reach 平台原生增强
+
+若本机已安装 `agent-reach`，Collector 会优先使用其中**已可用、只读**的原生后端处理下列 URL；结果仍输出为标准 Collector JSON，并记录 `metadata.fetcher: agent-reach`、平台和具体后端，随后照常进入媒体、OCR、archive 和 Organizer 流程。
+
+| 来源 | 后端 | 采集范围 |
+|------|------|----------|
+| GitHub 仓库 | `gh api` | 仓库元数据与 README |
+| V2EX 主题 | V2EX 公共 API | 正文与当前 API 返回的评论 |
+| YouTube / B站视频 | `yt-dlp --dump-single-json` | 标题、描述、频道、时长与缩略图；默认不下载视频/字幕 |
+| X / Twitter 单帖 | `xreach tweet` | 已有授权允许读取的正文 |
+
+- 不适用于小红书、微信公众号：二者继续优先使用 Collector 的专用浏览器与归档流程，避免覆盖既有评论、媒体、OCR 和登录态规则。
+- **禁止**在 Collector 中调用 `agent-reach configure --from-browser`，也不得导出、写入或归档 Cookie、Token、浏览器存储内容。
+- 不启动 Docker、不安装可选渠道、不触发登录；后端不可用、无权限、超时或返回空内容时自动退回原有链路。
+- 用 `--no-agent-reach` 可强制跳过此增强，便于复现旧提取路径或排障。
+
 ### 反爬策略
-四级 fallback：
-1. **Jina Reader**（秒级）—— 云端 headless Chrome，覆盖 80% 公开内容
-2. **直接 HTTP**（秒级）—— HTML 解析
-3. **Scrapling**（秒级，可选）—— 仅用于公开页面的兼容性提取；不得启用或配置隐身、挑战绕过、指纹伪装等规避反爬能力
-4. **CDP 浏览器**（十秒级）—— 连接用户已登录的本地 Chrome，以正常页面渲染和允许的交互完成采集（需 web-access skill）
+五级 fallback（平台原生增强仅对上述来源生效）：
+1. **Agent Reach 原生后端**（秒级，可选）—— 已安装的公开/已授权只读渠道
+2. **Jina Reader**（秒级）—— 云端 headless Chrome，覆盖 80% 公开内容
+3. **直接 HTTP**（秒级）—— HTML 解析
+4. **Scrapling**（秒级，可选）—— 仅用于公开页面的兼容性提取；不得启用或配置隐身、挑战绕过、指纹伪装等规避反爬能力
+5. **CDP 浏览器**（十秒级）—— 连接用户已登录的本地 Chrome，以正常页面渲染和允许的交互完成采集（需 web-access skill）
 
 每级自动检测可用性，失败后自动降级到下一级。
 

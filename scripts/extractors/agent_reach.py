@@ -63,7 +63,11 @@ def supported_platform(url: str) -> str | None:
     if host.endswith("bilibili.com") or host.endswith("b23.tv"):
         return "bilibili"
     if host.endswith("github.com"):
-        return "github"
+        # The native adapter currently archives repositories (metadata + README),
+        # not issues, pull requests, commits, or user profiles. Leave those to
+        # the normal web fallback rather than silently substituting repository text.
+        segments = [part for part in urllib.parse.urlparse(url).path.split("/") if part]
+        return "github" if len(segments) == 2 else None
     if host.endswith("v2ex.com"):
         return "v2ex"
     if host in {"x.com", "www.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com"}:
