@@ -26,6 +26,7 @@ from extractors.media import download_media_batch
 from extractors.cdp_fetch import fetch_via_cdp, _cdp_available
 from extractors.scrapling_fetch import fetch_via_scrapling, _scrapling_available
 from extractors.xhs_video import download_and_transcribe_xhs_video, resolve_xhs_detail
+from extractors.agent_reach import extract_via_agent_reach, supported_platform
 
 CST = timezone(timedelta(hours=8))
 ARCHIVE_ROOT = Path.home() / "Library" / "Mobile Documents" / "iCloud~md~obsidian" / "Documents" / "Niu" / "知识库" / "archive"
@@ -165,11 +166,25 @@ def save_raw_archive(result: dict) -> str | None:
     return str(archive_dir)
 
 
-def extract_with_fallback(url: str, source_type: str) -> dict:
+def extract_with_fallback(url: str, source_type: str, use_agent_reach: bool = True) -> dict:
     """
     带 fallback 的统一提取逻辑
-    fallback 链: Jina/HTTP → Scrapling → CDP
+    fallback 链: 平台原生 Agent Reach（适用时）→ Jina/HTTP → Scrapling → CDP
+
+    Agent Reach 仅调用已安装的只读本地后端；不导入浏览器 Cookie、不登录、
+    不启动 Docker 服务。小红书和微信公众号继续使用 Collector 的专用流程。
     """
+    # 平台原生路径优先：GitHub、V2EX、YouTube/B站和 X 能获得比通用 HTML
+    # 更完整的结构化内容。不可用或无权限时无副作用地降级。
+    platform = supported_platform(url) if use_agent_reach else None
+    if platform:
+        agent_reach_result = extract_via_agent_reach(url)
+        if agent_reach_result and _is_valid_content(
+            agent_reach_result.get("content_md", ""), source_type,
+            agent_reach_result.get("images", []),
+        ):
+            return build_result(source_type, url, **agent_reach_result)
+
     # Level 1 & 2: Jina + 直接 HTTP（由各 extractor 内部处理）
     if source_type == "wechat":
         result = extract_wechat(url)
@@ -269,6 +284,10 @@ def main():
     parser.add_argument("--no-ocr", action="store_true", help="跳过图片 OCR")
     parser.add_argument("--no-download", action="store_true", help="跳过媒体下载")
     parser.add_argument("--no-archive", action="store_true", help="跳过原始素材归档")
+    parser.add_argument(
+        "--no-agent-reach", action="store_true",
+        help="跳过已安装 Agent Reach 的平台原生只读提取，使用原有 fallback",
+    )
     parser.add_argument("--media-dir", help="媒体文件保存目录（默认与 JSON 同目录下的 media/）")
     parser.add_argument("--output-dir", help="保存结果到指定目录")
     args = parser.parse_args()
@@ -290,7 +309,9 @@ def main():
         elif source_type == "pdf":
             result = extract_pdf(processed)
         elif source_type in ("wechat", "xiaohongshu", "webpage"):
-            result = extract_with_fallback(processed, source_type)
+            result = extract_with_fallback(
+                processed, source_type, use_agent_reach=not args.no_agent_reach,
+            )
         else:
             print(json.dumps({"error": f"不支持的输入类型: {source_type}"}, ensure_ascii=False))
             sys.exit(1)
