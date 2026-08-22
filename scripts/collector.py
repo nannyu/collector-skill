@@ -179,11 +179,13 @@ def extract_with_fallback(url: str, source_type: str, use_agent_reach: bool = Tr
     platform = supported_platform(url) if use_agent_reach else None
     if platform:
         agent_reach_result = extract_via_agent_reach(url)
-        if agent_reach_result and _is_valid_content(
-            agent_reach_result.get("content_md", ""), source_type,
-            agent_reach_result.get("images", []),
-        ):
-            return build_result(source_type, url, **agent_reach_result)
+        if agent_reach_result:
+            # Native adapters return structured records. Do not feed their legitimate
+            # README/description text through the generic anti-bot keyword heuristic:
+            # a project may discuss CAPTCHA or login without being an interstitial.
+            native_content = agent_reach_result.get("content_md", "").strip()
+            if native_content and (agent_reach_result.get("title") or len(native_content) >= 100):
+                return build_result(source_type, url, **agent_reach_result)
 
     # Level 1 & 2: Jina + 直接 HTTP（由各 extractor 内部处理）
     if source_type == "wechat":
